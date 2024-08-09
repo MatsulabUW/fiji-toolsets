@@ -9,6 +9,11 @@
 
 var profileWidth   = 7;  // in pixels. The width of the line when you are making line profile ("M")
 var LUTnb=1; // 1: Grays; 2: inverted grays; 3: fire
+
+var sumProject = 0; // set this to 1 if you want your kymographs to be a sum projection instead of a max projection.
+var kymographWidth = 5; //in pixels. The width of the region from which to make kymograph.
+var profileWidth   = 7;  // in pixels. The width of the line when you are making line profile ("M")
+
 var useSubset = 1; // Set this to 1 if you want to measure intitation densities for a (continuous) region smaller than the size of the kymograph.
 
 macro "Color composite + contrast Action Tool - Cff0D63D64D65D71D72D73D74D75D81D82D83D84D85D93D94D95C0f0D90D91D92Da0Da1Da2Da3Da4Da5Da6Db0Db1Db2Db3Db4Db5Db6Dc0Dc1Dc2Dc3Dc4Dc5Dc6Dc7Dc8Dd1Dd2Dd3Dd4Dd5Dd6Dd7Dd8De1De2De3De4De5De6De7De8Df3Df4Df5Df6Cf0fD39D47D48D49D57D58D59D67D68D69Cf00D03D04D05D06D11D12D13D14D15D16D17D18D21D22D23D24D25D26D27D28D30D31D32D33D34D35D36D37D38D40D41D42D43D44D45D46D50D51D52D53D54D55D56D60D61D62C00fD3aD3bD3cD4aD4bD4cD4dD4eD5aD5bD5cD5dD5eD6aD6bD6cD6dD6eD6fD79D7aD7bD7cD7dD7eD7fD89D8aD8bD8cD8dD8eD8fD9aD9bD9cD9dD9eD9fDaaDabDacDadDaeDbaDbbDbcDbdDbeDcaDcbDccCfffD66D76D77D78D86D87D88D96C0ffD97D98D99Da7Da8Da9Db7Db8Db9Dc9"
@@ -93,16 +98,390 @@ macro 'OptimizeContrast [o]'{
 	}
 }
 
-macro "Make multicolor Hyperstack Action Tool- C059T3e16H" {
+macro "Make kymographs (shift: batch mode) Action Tool - C059T3e16K" {
 	
-	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
+	// This tool will make kymographs from line regions you create.
+	getDimensions(w, h, channels, slices, frames);
+	// get directory of open image
+	dir=getInfo("image.directory");
 
-	// ask how many channels?
-	#@ Double nChannels
+	if(isKeyDown("shift"))
+		{fastmethod=1;
+		
+		print("This is the batch method of making kymographs. All open images have been closed. Your kymographs will be saved in the same folder as your movie.");
+		}
 	
-	run("Stack to Hyperstack...", "order=xyztc channels="+nChannels+" slices=1 frames="+d2s(whole_slices/nChannels)+" display=Composite");
+	else
+		{fastmethod = 0;
+		}
+	
+	if(fastmethod>0){
+		
+		// Close all windows without saving
+		
+		while (nImages>0) { 
+			selectImage(floor(nImages*random)+1); 
+			close(); 
+		}
+		
+		
+		imageFile=File.openDialog("Select your movie");
+		setBatchMode(true);	
+		open(imageFile);
+		
+		dir=getInfo("image.directory");
+		curID=getImageID();
+		imageTitle=getTitle();
+		shortImageTitle=replace(imageTitle,".tif","_");
+		
+		roiNb=roiManager("count");
+		
+		// save ROIs
+		print(dir+shortImageTitle+"ROIs.zip");
+		
+		if(roiNb == 0 ){
+			
+			kymROIs = File.openDialog("Select ROI zip file to make kymographs");
+			roiManager("Open", kymROIs); 
+			roiNb=roiManager("count");
+			
+		}
+		else {
+			roiManager("deselect");
+			roiManager("Remove Slice Info");
+			roiManager("Save", dir+shortImageTitle+"w"+kymographWidth+"_r1-"+roiNb+"ROIs.zip");
+		}
+		
+		// Iterate through ROIs
+		for(i=0;i<roiNb;i++){		
+			
+			ii = i+1; // so the naming starts at 1 instead of 0
+			
+			selectImage(curID);
+			roiManager("select",i);
+			// straighten image - width defined above
+//			run("Straighten...", "line="+kymographWidth+" process");
+//			id1 = getImageID();
+			// reslice
+			
+			run("Reslice [/]...", "output=1.000 start=Top avoid width="+kymographWidth);
+			id2 = getImageID();
+			
+			
+			
+			if(sumProject)
+			// sum project image
+			
+				{run("Z Project...", "projection=[Sum Slices]");
+				id3 = getImageID();
+				curKym = getTitle();
+				}	
+			
+			else
+			{
+			
+			// maximum project image
+			
+			run("Z Project...", "projection=[Max Intensity]");
+			id3 = getImageID();
+			curKym = getTitle();
+			}
+			// rotate 90 degrees left
+			
+			run("Rotate 90 Degrees Left");
+			
+			// Change color
+			
+			//run("Green Fire Blue"); // If you don't have this particular lookup table or want b & w, comment this out.
+			
+			// save
+			
+			//saveAs("TIF", dir+shortImageTitle+"r"+ii+"w"+kymographWidth+"_kymograph.tif");
+			//saveAs("png", dir+shortImageTitle+"r"+ii+"w"+kymographWidth+"_kymograph.png");
+			
+			// close intermediate images
+			
+//			selectImage(id1);
+//			run("Close");
+			
+			selectImage(id2);
+			run("Close");
+			
+			// FOR BATCH MODE
+			// Try to make a stack from both images, turn into composite, and change look up tables. to circumvent protblem from merging
+			
+			
+			//wait(500);
+			//mergedID = getImageID();
+			
+			selectImage(id3); 
+			
+			saveAs("TIF", dir+shortImageTitle+"_w"+kymographWidth+"r"+ii+"_kymograph.tif");
+			saveAs("PNG", dir+shortImageTitle+"w"+kymographWidth+"r"+ii+"_kymograph.png");
+			
+			selectImage(shortImageTitle+"w"+kymographWidth+"r"+ii+"_kymograph.png");
+			run("Close");
+			
+			
+			
+			
+			
+			
+		}
+		
+		setBatchMode("exit and diplay");
+	}
+	
+	else
+	{
 
+		dir=getInfo("image.directory");
+		// print(dir);
+		// print("^^directory");
+		curID=getImageID();
+		imageTitle=getTitle();
+		shortImageTitle=replace(imageTitle,".tif","_");
+		
+		roiNb=roiManager("count");
+		// save ROIs
+		print(dir+shortImageTitle+"ROIs.zip");
+		
+		if(roiNb == 0 ){
+			
+			kymROIs = File.openDialog("Select ROI zip file to make kymographs");
+			roiManager("Open", kymROIs); 
+			roiNb=roiManager("count");
+			
+		}
+		else {
+			
+			roiManager("deselect");
+			roiManager("Remove Slice Info");
+			roiManager("Save", dir+shortImageTitle+"w"+kymographWidth+"_r1-"+roiNb+"ROIs.zip");
+		}
+		
+		// create duplicates of the file for each channel
+
+		// run duplicate, channel = 1
+		selectImage(curID);
+		run("Duplicate...", "title="+shortImageTitle+"ch1.tif duplicate channels=1");
+		// get image ID of the duplicate
+		idch1 = getImageID();
+		// run duplicate, channel = 2
+		selectImage(curID);
+		run("Duplicate...", "title="+shortImageTitle+"ch2.tif duplicate channels=2");
+		// get image ID of the duplicate
+		idch2 = getImageID();
+
+		if (channels==3)
+		{
+			// run duplicate, channel = 3
+			selectImage(curID);
+			run("Duplicate...", "title="+shortImageTitle+"ch3.tif duplicate channels=3");
+			// get image ID of the duplicate
+			idch3 = getImageID();
+		}
+
+		// Iterate through ROIs
+		
+		for(i=1;i<=roiNb;i++){
+			
+			// ii = i+1; // so the naming starts at 1 instead of 0
+			
+			// for each channel
+			for(j=0;j<channels;j++){
+				// print("working on ROI: "+i+" channel: "+j);
+				// select the image
+				if(j==0)
+					{selectImage(idch1);
+					}
+				else if(j==1)
+					{selectImage(idch2);
+					}
+				else if(j==2)
+					{selectImage(idch3);
+					}
+				
+				roiManager("select",i-1);
+				// straighten image - width defined above
+				run("Straighten...", "line="+kymographWidth+" process");
+				if(j==0)
+					idch1_1 = getImageID();
+				else if(j==1)
+					idch2_1 = getImageID();
+				else if(j==2)
+					idch3_1 = getImageID();
+
+				// reslice
+				
+				run("Reslice [/]...", "output=1.000 start=Top avoid");
+				if(j==0){
+					idch1_2 = getImageID();
+					name_ch1_2 = getTitle();
+					}
+				else if(j==1){
+					idch2_2 = getImageID();
+					name_ch2_2 = getTitle();
+					}
+				else if(j==2){
+					idch3_2 = getImageID();
+					name_ch3_2 = getTitle();
+					}	
+			}
+
+			// merge channels for idch1_2, idch2_2, idch3_2
+			if (channels == 3)
+				{
+				run("Merge Channels...", "c1=["+name_ch1_2+"] c2=["+name_ch2_2+"] c3=["+name_ch3_2+"] create");
+				idmerged = getImageID();
+				}
+			else
+				{run("Merge Channels...", "c1=["+name_ch1_2+"] c2=["+name_ch2_2+"] create");
+				idmerged = getImageID();
+				}	
+
+			// selectImage(curID);
+			// roiManager("select",i);
+			// // straighten image - width defined above
+			// run("Straighten...", "line="+kymographWidth+" process");
+			// id1 = getImageID();
+			// // reslice
+			
+			// run("Reslice [/]...", "output=1.000 start=Top avoid");
+			// id2 = getImageID();
+			
+			if(sumProject)
+			// sum project image
+			
+				{run("Z Project...", "projection=[Sum Slices]");
+				id3 = getImageID();
+				curKym = getTitle();
+				}	
+			
+			else
+				{
+			
+				// maximum project image. If you prefer sum projection: comment this out and uncomment "Sum slices" line
+				
+				run("Z Project...", "projection=[Max Intensity]");
+				id3 = getImageID();
+				curKym = getTitle();
+				//		run("Z Project...", "projection=[Sum Slices]");
+				}
+			
+			
+			// rotate 90 degrees left
+			
+			run("Rotate 90 Degrees Left");
+			
+			// Change color
+			
+			// run("Green Fire Blue"); 
+			// If you prefer green/ blue kymographs, remove the "//" at the beginning of the line above.
+			
+			// save
+			
+			if(sumProject)
+				{
+			saveAs("TIF", dir+shortImageTitle+"_sum_w"+kymographWidth+"r"+i+"_kymograph.tif");
+			saveAs("png", dir+shortImageTitle+"sumw"+kymographWidth+"r"+i+"_kymograph.png");
+				}
+			else
+				{
+
+			saveAs("TIF", dir+shortImageTitle+"_w"+kymographWidth+"r"+i+"_kymograph.tif");
+			saveAs("png", dir+shortImageTitle+"w"+kymographWidth+"r"+i+"_kymograph.png");
+				}
+			// close intermediate images
+			// print("Saved kymograph for ROI " + (i));
+
+			selectImage(idch1_1);
+			run("Close");
+			// selectImage(idch1_2);
+			// run("Close");
+			selectImage(idch2_1);
+			run("Close");
+			// selectImage(idch2_2);
+			// run("Close");
+
+			if(channels==3)
+			{
+				selectImage(idch3_1);
+				run("Close");
+				// selectImage(idch3_2);
+				// run("Close");
+			}
+
+			selectImage(idmerged);
+			run("Close");
+
+			// selectImage(id1);
+			// run("Close");
+			
+			// selectImage(id2);
+			// run("Close");
+			
+		}
+	// close images of each channel
+	selectImage(idch1);
+	run("Close");
+	selectImage(idch2);
+	run("Close");
+	if(channels==3)
+	{
+		selectImage(idch3);
+		run("Close");
+
+	}
+	
+	// Save image of regions + original movie file
+	
+	selectImage(curID);
+	roiManager("deselect");
+	run("Duplicate...", "title="+shortImageTitle+"w"+kymographWidth+"_r1-"+roiNb+"_regionOverlay.tif");
+	run("Enhance Contrast", "saturated=0.5");
+	roiManager("Set Line Width", kymographWidth);
+	roiManager("Remove Slice Info");
+	roiManager("Set Color", "#4dffff00");
+	roiManager("Show All with labels");
+	run("From ROI Manager");
+	saveAs("png", dir+shortImageTitle+"w"+kymographWidth+"_r1-"+roiNb+"_regionOverlay.png");
+	
+	// close remaining images
+
+	selectImage(curID);
+	run("Close");
+	
+	print("kymograph width is "+kymographWidth+" pixels");
+	}
+	// while (nImages>0) { 
+	// 	selectImage(floor(nImages*random)+1); 
+	// 	curImageID = getImageID();
+	// 	title = getTitle();
+	// 	print(title);
+	// 	print(curImageID);
+	// 	// close(); 
+	// }
+	
+	
+	
+	// get all ids of open images
+
+	// for (i=0; i<nImages; i++)
+	// 	selectImage(i);
+	// 	id_cur = getImageID();
+	// 	print(id_cur);
+	// 	run("Close");
+	// }
+	// close all open images
+	// for(i=0;i<openImages.length;i++)
+	// {
+	// 	selectImage(openImages[i]);
+	// 	run("Close");
+	// }
+	
 }
+
 macro "Bleach correct Action Tool - C059T3e16_" {
 	
 	// This tool will bleach correct based on exponential fit and save.
@@ -717,6 +1096,19 @@ macro "Adjust registration Action Tool - C059T3e16R"{
 	saveAs("TIF", dir+shortImageTitle+"translateX"+xShift+"Y"+yShift+".tif");
 	
 }
+
+
+macro "Make multicolor Hyperstack Action Tool- C059T3e16H" {
+	
+	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
+
+	// ask how many channels?
+	#@ Double nChannels
+	
+	run("Stack to Hyperstack...", "order=xyztc channels="+nChannels+" slices=1 frames="+d2s(whole_slices/nChannels)+" display=Composite");
+
+}
+
 
 macro "Measure line from kymograph Action Tool - C059T3e16L"
 // This tool measures lines you have drawn on kymographs and saves them with the same name as the kymograph.
