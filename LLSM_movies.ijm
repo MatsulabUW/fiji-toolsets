@@ -21,12 +21,12 @@ macro "Color composite + contrast Action Tool - Cff0D63D64D65D71D72D73D74D75D81D
 
 {
 	if(isKeyDown("shift"))
-		{yellowcyanred=1;
+		{yellowcyanred=0;
 		print("order of channels is yellow-cyan-magenta");
 		}
 	else
 		{
-		yellowcyanred = 0;
+		yellowcyanred = 1;
 		print("order of channels is magenta-cyan-yellow");
 		}	
 
@@ -132,7 +132,12 @@ macro "Make kymographs (shift: batch mode) Action Tool - C059T3e16K" {
 		dir=getInfo("image.directory");
 		curID=getImageID();
 		imageTitle=getTitle();
-		shortImageTitle=replace(imageTitle,".tif","_");
+
+// 		Remove the last four characters of imageTitle and replace them with _
+
+		shortImageTitle = imageTitle.substring(0, lengthOf(imageTitle)-4) + "_";
+		print("shortImageTitle: "+shortImageTitle);
+		// shortImageTitle=replace(imageTitle,".tif","_");
 		
 		roiNb=roiManager("count");
 		
@@ -240,7 +245,11 @@ macro "Make kymographs (shift: batch mode) Action Tool - C059T3e16K" {
 		// print("^^directory");
 		curID=getImageID();
 		imageTitle=getTitle();
-		shortImageTitle=replace(imageTitle,".tif","_");
+		// shortImageTitle=replace(imageTitle,".tif","_");
+		// 		Remove the last four characters of imageTitle and replace them with _
+
+		shortImageTitle = imageTitle.substring(0, lengthOf(imageTitle)-4) + "_";
+		print("shortImageTitle: "+shortImageTitle);
 		
 		roiNb=roiManager("count");
 		// save ROIs
