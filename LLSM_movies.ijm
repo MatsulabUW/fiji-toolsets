@@ -670,6 +670,7 @@ macro "four panel merge from composite Action Tool - C059T3e16P"
 // The macro supports both single-time-point and time-lapse images, and allows for processing in either two-channel or multi-channel modes. 
 // It is particularly useful for researchers who require consistent and efficient analysis of multiple image regions across different channels.
 {
+	twochannel=false;
 	if(isKeyDown("shift"))
 	{twochannel=true;
 	print("You're making a panel for two channels");
