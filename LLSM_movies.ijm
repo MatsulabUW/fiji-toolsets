@@ -866,6 +866,151 @@ macro "four panel merge from composite Action Tool - C059T3e16P"
 
 }
 
+macro "Make GIF (shift: set framerate) Action Tool - C059T3e16G"
+// This macro automates the process of creating a GIF from a stack of images.
+// To set the frame rate, hold down the shift key while running the macro.
+
+{
+	
+	// for now, hard code the frame rate, in frames per second
+
+	framerate = 15; 
+	millisecondsperframe = 1000/framerate;
+
+	// if shift key is down, popup asking for frame rate
+	if(isKeyDown("shift"))
+	{
+		framerate = getNumber("Enter frame rate (frames per second):", 15);
+		millisecondsperframe = 1000/framerate;
+	}
+
+	dir=getInfo("image.directory");
+	curID=getImageID();
+	imageTitle=getTitle();
+	isCZI=false;
+	
+    if(endsWith(imageTitle,"nd2")) {
+
+		shortImageTitle=replace(imageTitle,".nd2","_");
+	}
+	else if(endsWith(imageTitle,"czi")) {
+		isCZI=true;
+		shortImageTitle=replace(imageTitle,".czi","_");
+	}
+	else {
+		shortImageTitle=replace(imageTitle,".tif","_");
+	}
+	// count=roiManager("count");
+
+	// roiManager("deselect");
+	// roiManager("Remove Slice Info");
+	// roiManager("Save", dir+shortImageTitle+"boxROIs.zip");
+	
+	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
+	// print("time points: ");
+	// print(whole_frames);
+	
+// get the image acquisition rate from image properties
+	// run("Properties...");
+
+
+	// get the frame rate
+	run("Animation Options...", "speed="+framerate+" ");
+	
+	run("RGB Color", "frames keep");
+	rgbID=getImageID();
+
+	// this is the format: run("Animated Gif ... ", "name=20240809_MA3_Abhi410_65_510_202020_JFXON_15um_OS_41_0-5min-01_MIP set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set=66 number=-1 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename=/Volumes/home/Microscopy/Abhi/LLSM/2024-08-09_osmotic-shock/MA3_410_65_510_202020_JFXON_OS41_05min_15um/20240809_MA3_Abhi410_65_510_202020_JFXON_15um_OS_41_0-5min-01_MIP.gif");
+
+	run("Animated Gif ... ", "name="+shortImageTitle+" set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set="+millisecondsperframe+" number=-1 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename="+dir+shortImageTitle+".gif");
+	print("GIF saved as: "+dir+shortImageTitle+".gif");
+// 	for(i=0;i<count;i++){
+		
+// 		j = i+1;
+		
+// 		selectImage(curID);
+// 		roiManager("select",i);
+	
+// 		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+".tif]");
+// 		boxID=getImageID();
+// 		saveAs("TIF", dir+shortImageTitle+"box"+j+".tif");
+// //		increase number pixels without interprolation to save a less lossy avi file
+// //		run("RGB Color", "frames keep");
+// 		getDimensions(w, h, channels, slices, frames);
+// //		print("slices: ");
+// //		print(slices);
+// //		print("Frames: ");
+// //		print(frames);
+
+// 		if(isCZI==false){
+// 		run("Size...", "width="+d2s(w*8,0)+" height="+d2s(h*8,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");
+// 		}
+// 		else {
+// //			incerase size by 2x if it's an airyscan image (which has smaller pixels)
+// 		run("Size...", "width="+d2s(w*2,0)+" height="+d2s(h*2,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");	
+// 		}
+// //		chnange framerate dependingo on whether its a time lapse
+// 		if(whole_frames>1){
+// 			run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"box"+j+".avi]");
+// 		}
+// 		else{
+// 			run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+".avi]");
+// 		}
+// 		// this is where I Could save individual  BW channel avis.
+// 		if(whole_frames==1){
+// 			for(k=0;k<channels;k++){
+// 				selectImage(boxID);
+// 				cur_ch = d2s(k+1,0);
+// 	//			print("channel ");
+// 	//			print(cur_ch);
+// 	//			selectImage(curID);
+// 	//			run("Duplicate...", "duplicate channels="+cur_ch+"");
+// 				run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"ch"+cur_ch+".tif] duplicate channels="+cur_ch+"");
+// 				run("Grays");
+// 				run("Invert LUT");
+// 				run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+"ch"+cur_ch+".avi]");
+// 				run("Close");		
+// 			}
+// 		}
+		// selectImage(boxID);
+		// run("Close");
+		// run("RGB Color", "frames keep");
+//		run("Reslice [/]...", "output=1.000 start=Top rotate avoid");
+//		run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"_reslice_box"+j+".avi]");
+
+		
+		
+
+	// }
+	
+	// // Save image of regions + original movie file
+	
+	// selectImage(curID);	
+	// roiManager("deselect");
+	// run("Select All");
+	// run("Duplicate...", "title="+shortImageTitle+"box1-"+count+"_regionOverlay.tif");
+	// curDupID=getImageID();
+	
+	// //run("Enhance Contrast", "saturated=0.5");
+	// run("Stack to RGB");
+	// roiManager("Set Line Width", 5);
+	// roiManager("Remove Slice Info");
+	// roiManager("Set Color", "#4dffff00");
+	// roiManager("deselect");
+	// roiManager("Show None");
+	// roiManager("Show All with labels");
+	// run("From ROI Manager");
+	// saveAs("png", dir+shortImageTitle+"box1-"+count+"_regionOverlay..png");
+	
+	// selectImage(curDupID);	
+	// run("Close");
+
+	// roiManager("deselect");
+	// roiManager("Delete");
+
+
+}
+
 //macro "Temporal-Color Coder Action Tool C059T3e16T"
 //{
 /*
