@@ -31,45 +31,58 @@ macro "Color composite + contrast Action Tool - Cff0D63D64D65D71D72D73D74D75D81D
 		}	
 
 	getDimensions(w, h, channels, slices, frames);
-	Stack.setPosition(1,1,1)
+	Stack.setPosition(1,1,1);
+	// check if there is a selection
+	if (selectionType() == -1)
+	{
+		// select all
+		run("Select All");
+		// print("No selection found. Please make a selection first.");
+		print("Using the whole image. You can make a selection to set contrast on a specific region.");
+		// exit();
+	}
+	// get number of ROIs
+	
 //print("channels: ")
 //print(channels)
 	if(channels<3){
 	run("Make Composite");
 	roiManager("Add");
-	roiManager("Select", 0);
+	roi_nb = roiManager("count")-1;
+	roiManager("Select", roi_nb);
 	run("Enhance Contrast", "saturated=0.5");
 //	run("Green");
 	run("Yellow");
-	roiManager("Select", 0);
+	roiManager("Select", roi_nb);
 	run("Next Slice [>]");
 	run("Enhance Contrast", "saturated=0.5");
 //	run("Magenta");
 	run("Cyan");
-	roiManager("Select", 0);
+	roiManager("Select", roi_nb);
 	roiManager("Delete");
 	}
 	if(channels==3){
 		run("Make Composite");
 		roiManager("Add");
-		roiManager("Select", 0);
+		roi_nb = roiManager("count")-1;
+		roiManager("Select", roi_nb);
 		run("Enhance Contrast", "saturated=0.5");
 		if(yellowcyanred==1)
 			{run("Yellow");}
 		else 
 			{run("Magenta");}
-		roiManager("Select", 0);
+		roiManager("Select", roi_nb);
 		run("Next Slice [>]");
 		run("Enhance Contrast", "saturated=0.5");
 		run("Cyan");
-		roiManager("Select", 0);
+		roiManager("Select", roi_nb);
 		run("Next Slice [>]");
 		run("Enhance Contrast", "saturated=0.5");
 		if(yellowcyanred==1)
 			{run("Magenta");}
 		else 
 			{run("Yellow");}
-		roiManager("Select", 0);
+		roiManager("Select", roi_nb);
 		roiManager("Delete");
 	}
 
@@ -98,7 +111,536 @@ macro 'OptimizeContrast [o]'{
 	}
 }
 
-macro "Make kymographs (shift: batch mode) Action Tool - C059T3e16K" {
+// macro "Adjust registration Action Tool - C059T3e16R"{
+
+macro "Adjust registration Action Tool - C0f0o3488Cf08o7488"{
+	
+	if(isKeyDown("shift"))
+		{greenRed=1;
+		print("You're making a green/red composite");
+		}
+	
+	else
+		{greenRed = 0;
+		}
+	
+	regFile=File.openDialog("Select file to change registration");
+
+	// Change "xShift" and "yShift" values to change registration of selected image, in pixels
+	
+	xShift = 5;
+	yShift = 40;
+	
+	open(regFile);
+	regImage = getTitle();
+		
+	dir=getInfo("image.directory");
+	curID=getImageID();
+	imageTitle=getTitle();
+	shortImageTitle=replace(imageTitle,".tif","_");
+	
+	run("Translate...", "x="+xShift+" y="+yShift+" interpolation=None stack");
+	
+	// This sets the contrast of the two colors such that the red channel is 3x brighter than the green channel.
+	
+	saveAs("TIF", dir+shortImageTitle+"translateX"+xShift+"Y"+yShift+".tif");
+	
+}
+
+
+
+
+
+macro "Bleach correct Action Tool - C059T3e16_" {
+	
+	// This tool will bleach correct based on exponential fit and save.
+	
+// if(isKeyDown("shift"))
+// {fastmethod=1;
+	
+	dir=getInfo("image.directory");
+	curID=getImageID();
+	imageTitle=getTitle();
+	shortImageTitle=replace(imageTitle,".tif","_");
+	
+
+			
+	run("Bleach Correction", "correction=[Exponential Fit]");
+
+// wait(10);
+
+	bleachedID = getImageID();
+	saveAs("TIF", dir+shortImageTitle+"_bleachCorrected.TIF");
+
+	selectWindow("y = a*exp(-bx) + c");
+
+	// run("Save", "save=[/Volumes/MATT4/Nanopillars/201611 Hsinya smiFH2 CK666 FBP17 Arp3/Drug test_U2OS_SMIFH2_50uM/d400_02_After_30min_w2TXR_bleachPlot.TIF]");
+	saveAs("png", dir+shortImageTitle+"_bleachingPlot.png");
+
+	// selectWindow(bleachedID);
+
+
+
+	
+}
+
+
+
+macro "Maximum (+shift for Sum) Intensity Projection Action Tool - C902T3f18Z"
+{
+	if (Stack.isHyperStack)
+	{
+		getDimensions(w, h, channels, slices, frames);
+		if(isKeyDown("shift"))
+			{run("Z Project...", "start=1 stop="+slices+" projection=[Sum Slices] all");}
+		else 
+			{run("Z Project...", "start=1 stop="+slices+" projection=[Max Intensity] all");}
+	}
+	else
+		
+		if(isKeyDown("shift"))
+		{run("Z Project...", "start=1 stop="+nSlices+" projection=[Sum Slices]");}
+	else 
+	{
+		run("Z Project...", "start=1 stop="+nSlices+" projection=[Max Intensity]");
+	}
+	
+	
+}
+
+macro "Make GIF (shift: set framerate) Action Tool - C059T3e16G"
+// This macro automates the process of creating a GIF from a stack of images.
+// To set the frame rate, hold down the shift key while running the macro.
+
+{
+	
+	// for now, hard code the frame rate, in frames per second
+
+	framerate = 15; 
+	millisecondsperframe = 1000/framerate;
+
+	// if shift key is down, popup asking for frame rate
+	if(isKeyDown("shift"))
+	{
+		framerate = getNumber("Enter frame rate (frames per second):", 15);
+		millisecondsperframe = 1000/framerate;
+	}
+
+	dir=getInfo("image.directory");
+	curID=getImageID();
+	imageTitle=getTitle();
+	isCZI=false;
+	
+    if(endsWith(imageTitle,"nd2")) {
+
+		shortImageTitle=replace(imageTitle,".nd2","_");
+	}
+	else if(endsWith(imageTitle,"czi")) {
+		isCZI=true;
+		shortImageTitle=replace(imageTitle,".czi","_");
+	}
+	else {
+		shortImageTitle=replace(imageTitle,".tif","_");
+	}
+
+	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
+
+	run("Animation Options...", "speed="+framerate+" ");
+	
+	run("RGB Color", "frames keep");
+	rgbID=getImageID();
+
+	// this is the format: run("Animated Gif ... ", "name=20240809_MA3_Abhi410_65_510_202020_JFXON_15um_OS_41_0-5min-01_MIP set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set=66 number=-1 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename=/Volumes/home/Microscopy/Abhi/LLSM/2024-08-09_osmotic-shock/MA3_410_65_510_202020_JFXON_OS41_05min_15um/20240809_MA3_Abhi410_65_510_202020_JFXON_15um_OS_41_0-5min-01_MIP.gif");
+
+	run("Animated Gif ... ", "name="+shortImageTitle+" set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set="+millisecondsperframe+" number=-1 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename="+dir+shortImageTitle+".gif");
+	print("GIF saved as: "+dir+shortImageTitle+".gif");
+
+}
+
+// macro "Cut out box from composite Action Tool - C059T3e16B"
+macro "Cut Out Box from composite Action Tool - C008R00ffR55aa"
+
+
+{
+	dir=getInfo("image.directory");
+	curID=getImageID();
+	imageTitle=getTitle();
+	isCZI=false;
+	
+    if(endsWith(imageTitle,"nd2")) {
+
+		shortImageTitle=replace(imageTitle,".nd2","_");
+	}
+	else if(endsWith(imageTitle,"czi")) {
+		isCZI=true;
+		shortImageTitle=replace(imageTitle,".czi","_");
+	}
+	else {
+		shortImageTitle=replace(imageTitle,".tif","_");
+	}
+	count=roiManager("count");
+
+	roiManager("deselect");
+	roiManager("Remove Slice Info");
+	roiManager("Save", dir+shortImageTitle+"boxROIs.zip");
+	
+	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
+	print("time poitns: ");
+	print(whole_frames);
+	for(i=0;i<count;i++){
+		
+		j = i+1;
+		
+		selectImage(curID);
+		roiManager("select",i);
+	
+		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+".tif]");
+		boxID=getImageID();
+		saveAs("TIF", dir+shortImageTitle+"box"+j+".tif");
+//		increase number pixels without interprolation to save a less lossy avi file
+//		run("RGB Color", "frames keep");
+		getDimensions(w, h, channels, slices, frames);
+//		print("slices: ");
+//		print(slices);
+//		print("Frames: ");
+//		print(frames);
+
+		if(isCZI==false){
+		run("Size...", "width="+d2s(w*8,0)+" height="+d2s(h*8,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");
+		}
+		else {
+//			incerase size by 2x if it's an airyscan image (which has smaller pixels)
+		run("Size...", "width="+d2s(w*2,0)+" height="+d2s(h*2,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");	
+		}
+//		chnange framerate dependingo on whether its a time lapse
+		if(whole_frames>1){
+			run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"box"+j+".avi]");
+		}
+		else{
+			run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+".avi]");
+		}
+		// this is where I Could save individual  BW channel avis.
+		if(whole_frames==1){
+			for(k=0;k<channels;k++){
+				selectImage(boxID);
+				cur_ch = d2s(k+1,0);
+	//			print("channel ");
+	//			print(cur_ch);
+	//			selectImage(curID);
+	//			run("Duplicate...", "duplicate channels="+cur_ch+"");
+				run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"ch"+cur_ch+".tif] duplicate channels="+cur_ch+"");
+				run("Grays");
+				run("Invert LUT");
+				run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+"ch"+cur_ch+".avi]");
+				run("Close");		
+			}
+		}
+		selectImage(boxID);
+		run("Close");
+		// run("RGB Color", "frames keep");
+//		run("Reslice [/]...", "output=1.000 start=Top rotate avoid");
+//		run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"_reslice_box"+j+".avi]");
+
+		
+		
+
+	}
+	
+	// Save image of regions + original movie file
+	
+	selectImage(curID);	
+	roiManager("deselect");
+	run("Select All");
+	run("Duplicate...", "title="+shortImageTitle+"box1-"+count+"_regionOverlay.tif");
+	curDupID=getImageID();
+	
+	//run("Enhance Contrast", "saturated=0.5");
+	run("Stack to RGB");
+	roiManager("Set Line Width", 5);
+	roiManager("Remove Slice Info");
+	roiManager("Set Color", "#4dffff00");
+	roiManager("deselect");
+	roiManager("Show None");
+	roiManager("Show All with labels");
+	run("From ROI Manager");
+	saveAs("png", dir+shortImageTitle+"box1-"+count+"_regionOverlay..png");
+	
+	selectImage(curDupID);	
+	run("Close");
+
+	roiManager("deselect");
+	roiManager("Delete");
+
+
+}
+
+
+// macro "four panel merge from composite Action Tool - C059T3e16P"
+macro "four panel merge from composite Action Tool - C008R00a7R90a7R08a7R98a7"
+
+
+// This ImageJ macro automates the process of extracting, processing, and merging specific regions of interest (ROIs) from multi-channel microscopy images. 
+// Designed to work with .nd2, .czi, and .tif file formats, it streamlines tasks such as duplicating ROIs, converting them into different color spaces, and saving them in various formats including TIFF, AVI, and PNG. 
+// The macro supports both single-time-point and time-lapse images, and allows for processing in either two-channel or multi-channel modes. 
+// It is particularly useful for researchers who require consistent and efficient analysis of multiple image regions across different channels.
+{
+	twochannel=false;
+	if(isKeyDown("shift"))
+	{twochannel=true;
+	print("You're making a panel for two channels");
+	}
+
+	// set to true if you want to save gifs
+	// this is a little slow but higher resolution than the AVI
+	savegifs = true;
+
+	framespersecond=15;
+	millisecondsperframe=1000/framespersecond;
+
+	dir=getInfo("image.directory");
+	curID=getImageID();
+	imageTitle=getTitle();
+	isCZI=false;
+//	print("okay??");
+	
+    if(endsWith(imageTitle,"nd2")) {
+
+		shortImageTitle=replace(imageTitle,".nd2","_");
+	}
+	else if(endsWith(imageTitle,"czi")) {
+		isCZI=true;
+		shortImageTitle=replace(imageTitle,".czi","_");
+	}
+	else {
+		shortImageTitle=replace(imageTitle,".tif","_");
+	}
+	count=roiManager("count");
+
+	roiManager("deselect");
+	roiManager("Remove Slice Info");
+	roiManager("Save", dir+shortImageTitle+"boxROIs.zip");
+	
+	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
+	print("time points: ");
+	print(whole_frames);
+	print("ROIs: ");
+	print(count);
+	for(i=0;i<count;i++){
+		
+		j = i+1;
+
+		print("working on box:");
+		print(j);
+		
+		selectImage(curID);
+		roiManager("select",i);
+	
+		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+".tif]");
+		boxID=getImageID();
+		saveAs("TIF", dir+shortImageTitle+"box"+j+".tif");
+//		increase number pixels without interprolation to save a less lossy avi file
+//		run("RGB Color", "frames keep");
+		getDimensions(w, h, channels, slices, frames);
+//		print("slices: ");
+//		print(slices);
+//		print("Frames: ");
+//		print(frames);
+//
+//		if(isCZI==false){
+//		run("Size...", "width="+d2s(w*8,0)+" height="+d2s(h*8,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");
+//		}
+//		else {
+////			incerase size by 2x if it's an airyscan image (which has smaller pixels)
+//		run("Size...", "width="+d2s(w*2,0)+" height="+d2s(h*2,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");	
+//		}
+////		chnange framerate dependingo on whether its a time lapse
+//		if(whole_frames>1){
+//			run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"box"+j+".avi]");
+//		}
+//		else{
+//			run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+".avi]");
+//		}
+		// this is where I Could save individual  BW channel avis.
+//		duplicate individual channels, make RGB, combine, save
+
+//		chIDs = newArray("0");
+		// if(whole_frames==1){
+		for(k=0;k<channels;k++){
+			selectImage(boxID);
+			cur_ch = d2s(k+1,0);
+//			print("channel ");
+//			print(cur_ch);
+//			selectImage(curID);
+//			run("Duplicate...", "duplicate channels="+cur_ch+"");
+			run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"ch"+cur_ch+".tif] duplicate channels="+cur_ch+"");
+			run("Grays");
+			run("Invert LUT");
+			run("RGB Color");
+//				run("Invert LUT");
+//				run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+"ch"+cur_ch+".avi]");
+//				run("Close");		
+			chID=getImageID();
+//				Array.concat(chIDs,chID);
+//				Array.print(chIDs);
+			
+		}
+		// }
+		selectImage(boxID);
+//		here save multichannel as TIF
+		saveAs("TIF", dir+shortImageTitle+"box"+j+".tif");
+		
+		mergeID = getImageID();
+//		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"_merge.tif]");
+//		run("Close");
+
+		if(twochannel==true){
+			run("RGB Color", "slices");
+		}
+		else {
+			run("RGB Color", "frames keep");
+
+			// run("Stack to RGB");
+		}
+//		selectImage(boxID);
+//		run("Close");
+//		wait(500);
+//rename the image or else it'll get confused which image to take in the next step
+		rename("merged.tif");	
+		mergeTitle = getTitle();
+		print(mergeTitle);
+
+//		combine channels 1 and 2
+		
+		// run("Combine...", "stack1="+shortImageTitle+"box"+j+"ch1.tif stack2="+shortImageTitle+"box"+j+"ch2.tif");
+		run("Combine...", "stack1=merged.tif stack2="+shortImageTitle+"box"+j+"ch1.tif");
+
+		rename("combined_stacks_1.tif");
+
+		//combine channels 1 and 2 with merge (2 color)
+		if(twochannel==true){
+			run("Combine...", "stack1=combined_stacks_1.tif stack2=merged.tif");
+			
+		}
+
+		else {
+//		combine channels 3 and 4
+
+		// run("Combine...", "stack1="+shortImageTitle+"box"+j+"ch3.tif stack2=merged.tif");
+		run("Combine...", "stack1="+shortImageTitle+"box"+j+"ch2.tif stack2="+shortImageTitle+"box"+j+"ch3.tif");
+
+		rename("combined_stacks_2.tif");
+		
+		// run("RGB Color", "frames keep");
+//		run("Reslice [/]...", "output=1.000 start=Top rotate avoid");
+//		run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"_reslice_box"+j+".avi]");
+
+
+//		combine both sets of channels
+
+		run("Combine...", "stack1=combined_stacks_1.tif stack2=combined_stacks_2.tif combine");
+
+		}
+		saveAs("TIF", dir+shortImageTitle+"box"+j+"_channels_panel.tif");
+		// if(twochannel==true){
+		run("AVI... ", "compression=JPEG frame="+framespersecond+" save=["+dir+shortImageTitle+"box"+j+"_channels_panel.avi]");
+		
+		if(savegifs==true){
+			// save as gif
+			print("saving gif. This is a little slow but higher resolution than the AVI. To skip this step you can set savegifs to false in the source code");
+			run("Animated Gif ... ", "name="+shortImageTitle+"box"+j+"_channels_panel set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set="+millisecondsperframe+" number=-1 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename="+dir+shortImageTitle+"box"+j+"_channels_panel.gif");
+		}
+		// }
+		saveAs("png", dir+shortImageTitle+"box"+j+"_channels_panel.png");	
+		run("Close");
+
+		if(twochannel==true){
+			
+		}
+		else {
+		selectImage(boxID);
+		run("Close");
+		}
+	}
+	
+	// Save image of regions + original movie file
+	
+	selectImage(curID);	
+	roiManager("deselect");
+//	run("Select All");
+//	run("Duplicate...", "title="+shortImageTitle+"box1-"+count+"_regionOverlay.tif");
+
+	//run("Enhance Contrast", "saturated=0.5");
+	// run("Stack to RGB");
+	if(twochannel==true){
+		run("RGB Color", "slices");
+		roiManager("Set Line Width", 2);
+	}
+	else {
+		// run("Stack to RGB");
+		run("RGB Color", "frames keep");
+		roiManager("Set Line Width", 2);
+	}
+	roiManager("Remove Slice Info");
+	roiManager("Set Color", "magenta");
+	roiManager("deselect");
+	roiManager("Show None");
+	roiManager("Show All with labels");
+	run("From ROI Manager");
+	saveAs("png", dir+shortImageTitle+"box1-"+count+"_regionOverlay..png");
+
+	// if(twochannel==true){
+		
+	// }
+	// else {
+	// selectImage(curDupID);	
+	// run("Close");
+	// }
+	roiManager("deselect");
+	roiManager("Delete");
+
+
+}
+
+
+
+//macro "Temporal-Color Coder Action Tool C059T3e16T"
+//{
+/*
+
+************* Temporal-Color Coder *******************************
+Color code the temporal changes.
+
+Kota Miura (miura@embl.de) +49 6221 387 404 
+Centre for Molecular and Cellular Imaging, EMBL Heidelberg, Germany
+
+!!! Please do not distribute. If asked, please tell the person to contact me. !!!
+If you publish a paper using this macro, it would be cratedful if you could acknowledge. 
+
+Edit MA 08/10/2015 to save image with file name
+ 
+---- INSTRUCTION ----
+
+1. Open a stack (8 bit or 16 bit)
+2. Run the macro
+3. In the dialog choose one of the LUT for time coding.
+	select frame range (default is full).
+	check if you want to have color scale bar.
+
+History
+
+080212	created ver1 K_TimeRGBcolorcode.ijm
+080213	stack slice range option added.
+		time color code scale option added.
+
+		future probable addiition: none-linear assigning of gray intensity to color intensity
+		--> but this is same as doing contrast enhancement before processing.
+*****************************************************************************
+*/
+
+
+// macro "Make kymographs (shift: batch mode) Action Tool - C059T3e16K" {
+macro "Make kymographs Action Tool - Cf0fF16c3C0ffF9665" {
+
 	
 	// This tool will make kymographs from line regions you create.
 	getDimensions(w, h, channels, slices, frames);
@@ -491,561 +1033,6 @@ macro "Make kymographs (shift: batch mode) Action Tool - C059T3e16K" {
 	
 }
 
-macro "Bleach correct Action Tool - C059T3e16_" {
-	
-	// This tool will bleach correct based on exponential fit and save.
-	
-// if(isKeyDown("shift"))
-// {fastmethod=1;
-	
-	dir=getInfo("image.directory");
-	curID=getImageID();
-	imageTitle=getTitle();
-	shortImageTitle=replace(imageTitle,".tif","_");
-	
-
-			
-	run("Bleach Correction", "correction=[Exponential Fit]");
-
-// wait(10);
-
-	bleachedID = getImageID();
-	saveAs("TIF", dir+shortImageTitle+"_bleachCorrected.TIF");
-
-	selectWindow("y = a*exp(-bx) + c");
-
-	// run("Save", "save=[/Volumes/MATT4/Nanopillars/201611 Hsinya smiFH2 CK666 FBP17 Arp3/Drug test_U2OS_SMIFH2_50uM/d400_02_After_30min_w2TXR_bleachPlot.TIF]");
-	saveAs("png", dir+shortImageTitle+"_bleachingPlot.png");
-
-	// selectWindow(bleachedID);
-
-
-
-	
-}
-
-
-
-macro "Maximum (+shift for Sum) Intensity Projection Action Tool - C902T3f18Z"
-{
-	if (Stack.isHyperStack)
-	{
-		getDimensions(w, h, channels, slices, frames);
-		if(isKeyDown("shift"))
-			{run("Z Project...", "start=1 stop="+slices+" projection=[Sum Slices] all");}
-		else 
-			{run("Z Project...", "start=1 stop="+slices+" projection=[Max Intensity] all");}
-	}
-	else
-		
-		if(isKeyDown("shift"))
-		{run("Z Project...", "start=1 stop="+nSlices+" projection=[Sum Slices]");}
-	else 
-	{
-		run("Z Project...", "start=1 stop="+nSlices+" projection=[Max Intensity]");
-	}
-	
-	
-}
-
-macro "Cut out box from composite Action Tool - C059T3e16B"
-{
-	dir=getInfo("image.directory");
-	curID=getImageID();
-	imageTitle=getTitle();
-	isCZI=false;
-	
-    if(endsWith(imageTitle,"nd2")) {
-
-		shortImageTitle=replace(imageTitle,".nd2","_");
-	}
-	else if(endsWith(imageTitle,"czi")) {
-		isCZI=true;
-		shortImageTitle=replace(imageTitle,".czi","_");
-	}
-	else {
-		shortImageTitle=replace(imageTitle,".tif","_");
-	}
-	count=roiManager("count");
-
-	roiManager("deselect");
-	roiManager("Remove Slice Info");
-	roiManager("Save", dir+shortImageTitle+"boxROIs.zip");
-	
-	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
-	print("time poitns: ");
-	print(whole_frames);
-	for(i=0;i<count;i++){
-		
-		j = i+1;
-		
-		selectImage(curID);
-		roiManager("select",i);
-	
-		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+".tif]");
-		boxID=getImageID();
-		saveAs("TIF", dir+shortImageTitle+"box"+j+".tif");
-//		increase number pixels without interprolation to save a less lossy avi file
-//		run("RGB Color", "frames keep");
-		getDimensions(w, h, channels, slices, frames);
-//		print("slices: ");
-//		print(slices);
-//		print("Frames: ");
-//		print(frames);
-
-		if(isCZI==false){
-		run("Size...", "width="+d2s(w*8,0)+" height="+d2s(h*8,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");
-		}
-		else {
-//			incerase size by 2x if it's an airyscan image (which has smaller pixels)
-		run("Size...", "width="+d2s(w*2,0)+" height="+d2s(h*2,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");	
-		}
-//		chnange framerate dependingo on whether its a time lapse
-		if(whole_frames>1){
-			run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"box"+j+".avi]");
-		}
-		else{
-			run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+".avi]");
-		}
-		// this is where I Could save individual  BW channel avis.
-		if(whole_frames==1){
-			for(k=0;k<channels;k++){
-				selectImage(boxID);
-				cur_ch = d2s(k+1,0);
-	//			print("channel ");
-	//			print(cur_ch);
-	//			selectImage(curID);
-	//			run("Duplicate...", "duplicate channels="+cur_ch+"");
-				run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"ch"+cur_ch+".tif] duplicate channels="+cur_ch+"");
-				run("Grays");
-				run("Invert LUT");
-				run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+"ch"+cur_ch+".avi]");
-				run("Close");		
-			}
-		}
-		selectImage(boxID);
-		run("Close");
-		// run("RGB Color", "frames keep");
-//		run("Reslice [/]...", "output=1.000 start=Top rotate avoid");
-//		run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"_reslice_box"+j+".avi]");
-
-		
-		
-
-	}
-	
-	// Save image of regions + original movie file
-	
-	selectImage(curID);	
-	roiManager("deselect");
-	run("Select All");
-	run("Duplicate...", "title="+shortImageTitle+"box1-"+count+"_regionOverlay.tif");
-	curDupID=getImageID();
-	
-	//run("Enhance Contrast", "saturated=0.5");
-	run("Stack to RGB");
-	roiManager("Set Line Width", 5);
-	roiManager("Remove Slice Info");
-	roiManager("Set Color", "#4dffff00");
-	roiManager("deselect");
-	roiManager("Show None");
-	roiManager("Show All with labels");
-	run("From ROI Manager");
-	saveAs("png", dir+shortImageTitle+"box1-"+count+"_regionOverlay..png");
-	
-	selectImage(curDupID);	
-	run("Close");
-
-	roiManager("deselect");
-	roiManager("Delete");
-
-
-}
-
-
-macro "four panel merge from composite Action Tool - C059T3e16P"
-
-// This ImageJ macro automates the process of extracting, processing, and merging specific regions of interest (ROIs) from multi-channel microscopy images. 
-// Designed to work with .nd2, .czi, and .tif file formats, it streamlines tasks such as duplicating ROIs, converting them into different color spaces, and saving them in various formats including TIFF, AVI, and PNG. 
-// The macro supports both single-time-point and time-lapse images, and allows for processing in either two-channel or multi-channel modes. 
-// It is particularly useful for researchers who require consistent and efficient analysis of multiple image regions across different channels.
-{
-	twochannel=false;
-	if(isKeyDown("shift"))
-	{twochannel=true;
-	print("You're making a panel for two channels");
-	}
-
-
-	dir=getInfo("image.directory");
-	curID=getImageID();
-	imageTitle=getTitle();
-	isCZI=false;
-//	print("okay??");
-	
-    if(endsWith(imageTitle,"nd2")) {
-
-		shortImageTitle=replace(imageTitle,".nd2","_");
-	}
-	else if(endsWith(imageTitle,"czi")) {
-		isCZI=true;
-		shortImageTitle=replace(imageTitle,".czi","_");
-	}
-	else {
-		shortImageTitle=replace(imageTitle,".tif","_");
-	}
-	count=roiManager("count");
-
-	roiManager("deselect");
-	roiManager("Remove Slice Info");
-	roiManager("Save", dir+shortImageTitle+"boxROIs.zip");
-	
-	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
-	print("time poitns: ");
-	print(whole_frames);
-	print("ROIs: ");
-	print(count);
-	for(i=0;i<count;i++){
-		
-		j = i+1;
-
-		print("working on box:");
-		print(j);
-		
-		selectImage(curID);
-		roiManager("select",i);
-	
-		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+".tif]");
-		boxID=getImageID();
-		saveAs("TIF", dir+shortImageTitle+"box"+j+".tif");
-//		increase number pixels without interprolation to save a less lossy avi file
-//		run("RGB Color", "frames keep");
-		getDimensions(w, h, channels, slices, frames);
-//		print("slices: ");
-//		print(slices);
-//		print("Frames: ");
-//		print(frames);
-//
-//		if(isCZI==false){
-//		run("Size...", "width="+d2s(w*8,0)+" height="+d2s(h*8,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");
-//		}
-//		else {
-////			incerase size by 2x if it's an airyscan image (which has smaller pixels)
-//		run("Size...", "width="+d2s(w*2,0)+" height="+d2s(h*2,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");	
-//		}
-////		chnange framerate dependingo on whether its a time lapse
-//		if(whole_frames>1){
-//			run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"box"+j+".avi]");
-//		}
-//		else{
-//			run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+".avi]");
-//		}
-		// this is where I Could save individual  BW channel avis.
-//		duplicate individual channels, make RGB, combine, save
-
-//		chIDs = newArray("0");
-		if(whole_frames==1){
-			for(k=0;k<channels;k++){
-				selectImage(boxID);
-				cur_ch = d2s(k+1,0);
-	//			print("channel ");
-	//			print(cur_ch);
-	//			selectImage(curID);
-	//			run("Duplicate...", "duplicate channels="+cur_ch+"");
-				run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"ch"+cur_ch+".tif] duplicate channels="+cur_ch+"");
-				run("Grays");
-				run("RGB Color");
-//				run("Invert LUT");
-//				run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+"ch"+cur_ch+".avi]");
-//				run("Close");		
-				chID=getImageID();
-//				Array.concat(chIDs,chID);
-//				Array.print(chIDs);
-				
-			}
-		}
-		selectImage(boxID);
-//		here save multichannel as TIF
-		saveAs("TIF", dir+shortImageTitle+"box"+j+".tif");
-		
-		mergeID = getImageID();
-//		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"_merge.tif]");
-//		run("Close");
-
-		if(twochannel==true){
-			run("RGB Color", "slices");
-		}
-		else {
-			run("Stack to RGB");
-		}
-//		selectImage(boxID);
-//		run("Close");
-//		wait(500);
-//rename the image or else it'll get confused which image to take in the next step
-		rename("merged.tif");	
-		mergeTitle = getTitle();
-		print(mergeTitle);
-
-//		combine channels 1 and 2
-		
-		run("Combine...", "stack1="+shortImageTitle+"box"+j+"ch1.tif stack2="+shortImageTitle+"box"+j+"ch2.tif");
-		rename("combined_stacks_1.tif");
-
-		//combine channels 1 and 2 with merge (2 color)
-		if(twochannel==true){
-			run("Combine...", "stack1=combined_stacks_1.tif stack2=merged.tif");
-		}
-
-		else {
-//		combine channels 3 and 4
-
-		run("Combine...", "stack1="+shortImageTitle+"box"+j+"ch3.tif stack2=merged.tif");
-		rename("combined_stacks_2.tif");
-		
-		// run("RGB Color", "frames keep");
-//		run("Reslice [/]...", "output=1.000 start=Top rotate avoid");
-//		run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"_reslice_box"+j+".avi]");
-
-
-//		combine both sets of channels
-
-		run("Combine...", "stack1=combined_stacks_1.tif stack2=combined_stacks_2.tif combine");
-
-		}
-		saveAs("TIF", dir+shortImageTitle+"box"+j+"_channels_panel.tif");
-		if(twochannel==true){
-			run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+"_channels_panel.avi]");
-		}
-		saveAs("png", dir+shortImageTitle+"box"+j+"_channels_panel.png");	
-		run("Close");
-
-		if(twochannel==true){
-			
-		}
-		else {
-		selectImage(boxID);
-		run("Close");
-		}
-	}
-	
-	// Save image of regions + original movie file
-	
-	selectImage(curID);	
-	roiManager("deselect");
-//	run("Select All");
-//	run("Duplicate...", "title="+shortImageTitle+"box1-"+count+"_regionOverlay.tif");
-
-	//run("Enhance Contrast", "saturated=0.5");
-	run("Stack to RGB");
-	if(twochannel==true){
-		run("RGB Color", "slices");
-		roiManager("Set Line Width", 2);
-	}
-	else {
-		run("Stack to RGB");
-		roiManager("Set Line Width", 30);
-	}
-	roiManager("Remove Slice Info");
-	roiManager("Set Color", "magenta");
-	roiManager("deselect");
-	roiManager("Show None");
-	roiManager("Show All with labels");
-	run("From ROI Manager");
-	saveAs("png", dir+shortImageTitle+"box1-"+count+"_regionOverlay..png");
-
-	if(twochannel==true){
-		
-	}
-	else {
-	selectImage(curDupID);	
-	run("Close");
-	}
-	roiManager("deselect");
-	roiManager("Delete");
-
-
-}
-
-macro "Make GIF (shift: set framerate) Action Tool - C059T3e16G"
-// This macro automates the process of creating a GIF from a stack of images.
-// To set the frame rate, hold down the shift key while running the macro.
-
-{
-	
-	// for now, hard code the frame rate, in frames per second
-
-	framerate = 15; 
-	millisecondsperframe = 1000/framerate;
-
-	// if shift key is down, popup asking for frame rate
-	if(isKeyDown("shift"))
-	{
-		framerate = getNumber("Enter frame rate (frames per second):", 15);
-		millisecondsperframe = 1000/framerate;
-	}
-
-	dir=getInfo("image.directory");
-	curID=getImageID();
-	imageTitle=getTitle();
-	isCZI=false;
-	
-    if(endsWith(imageTitle,"nd2")) {
-
-		shortImageTitle=replace(imageTitle,".nd2","_");
-	}
-	else if(endsWith(imageTitle,"czi")) {
-		isCZI=true;
-		shortImageTitle=replace(imageTitle,".czi","_");
-	}
-	else {
-		shortImageTitle=replace(imageTitle,".tif","_");
-	}
-	// count=roiManager("count");
-
-	// roiManager("deselect");
-	// roiManager("Remove Slice Info");
-	// roiManager("Save", dir+shortImageTitle+"boxROIs.zip");
-	
-	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
-	// print("time points: ");
-	// print(whole_frames);
-	
-// get the image acquisition rate from image properties
-	// run("Properties...");
-
-
-	// get the frame rate
-	run("Animation Options...", "speed="+framerate+" ");
-	
-	run("RGB Color", "frames keep");
-	rgbID=getImageID();
-
-	// this is the format: run("Animated Gif ... ", "name=20240809_MA3_Abhi410_65_510_202020_JFXON_15um_OS_41_0-5min-01_MIP set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set=66 number=-1 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename=/Volumes/home/Microscopy/Abhi/LLSM/2024-08-09_osmotic-shock/MA3_410_65_510_202020_JFXON_OS41_05min_15um/20240809_MA3_Abhi410_65_510_202020_JFXON_15um_OS_41_0-5min-01_MIP.gif");
-
-	run("Animated Gif ... ", "name="+shortImageTitle+" set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set="+millisecondsperframe+" number=-1 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename="+dir+shortImageTitle+".gif");
-	print("GIF saved as: "+dir+shortImageTitle+".gif");
-// 	for(i=0;i<count;i++){
-		
-// 		j = i+1;
-		
-// 		selectImage(curID);
-// 		roiManager("select",i);
-	
-// 		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+".tif]");
-// 		boxID=getImageID();
-// 		saveAs("TIF", dir+shortImageTitle+"box"+j+".tif");
-// //		increase number pixels without interprolation to save a less lossy avi file
-// //		run("RGB Color", "frames keep");
-// 		getDimensions(w, h, channels, slices, frames);
-// //		print("slices: ");
-// //		print(slices);
-// //		print("Frames: ");
-// //		print(frames);
-
-// 		if(isCZI==false){
-// 		run("Size...", "width="+d2s(w*8,0)+" height="+d2s(h*8,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");
-// 		}
-// 		else {
-// //			incerase size by 2x if it's an airyscan image (which has smaller pixels)
-// 		run("Size...", "width="+d2s(w*2,0)+" height="+d2s(h*2,0)+" depth="+d2s(slices,0)+" constrain average interpolation=None");	
-// 		}
-// //		chnange framerate dependingo on whether its a time lapse
-// 		if(whole_frames>1){
-// 			run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"box"+j+".avi]");
-// 		}
-// 		else{
-// 			run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+".avi]");
-// 		}
-// 		// this is where I Could save individual  BW channel avis.
-// 		if(whole_frames==1){
-// 			for(k=0;k<channels;k++){
-// 				selectImage(boxID);
-// 				cur_ch = d2s(k+1,0);
-// 	//			print("channel ");
-// 	//			print(cur_ch);
-// 	//			selectImage(curID);
-// 	//			run("Duplicate...", "duplicate channels="+cur_ch+"");
-// 				run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"ch"+cur_ch+".tif] duplicate channels="+cur_ch+"");
-// 				run("Grays");
-// 				run("Invert LUT");
-// 				run("AVI... ", "compression=JPEG frame=8 save=["+dir+shortImageTitle+"box"+j+"ch"+cur_ch+".avi]");
-// 				run("Close");		
-// 			}
-// 		}
-		// selectImage(boxID);
-		// run("Close");
-		// run("RGB Color", "frames keep");
-//		run("Reslice [/]...", "output=1.000 start=Top rotate avoid");
-//		run("AVI... ", "compression=JPEG frame=12 save=["+dir+shortImageTitle+"_reslice_box"+j+".avi]");
-
-		
-		
-
-	// }
-	
-	// // Save image of regions + original movie file
-	
-	// selectImage(curID);	
-	// roiManager("deselect");
-	// run("Select All");
-	// run("Duplicate...", "title="+shortImageTitle+"box1-"+count+"_regionOverlay.tif");
-	// curDupID=getImageID();
-	
-	// //run("Enhance Contrast", "saturated=0.5");
-	// run("Stack to RGB");
-	// roiManager("Set Line Width", 5);
-	// roiManager("Remove Slice Info");
-	// roiManager("Set Color", "#4dffff00");
-	// roiManager("deselect");
-	// roiManager("Show None");
-	// roiManager("Show All with labels");
-	// run("From ROI Manager");
-	// saveAs("png", dir+shortImageTitle+"box1-"+count+"_regionOverlay..png");
-	
-	// selectImage(curDupID);	
-	// run("Close");
-
-	// roiManager("deselect");
-	// roiManager("Delete");
-
-
-}
-
-//macro "Temporal-Color Coder Action Tool C059T3e16T"
-//{
-/*
-
-************* Temporal-Color Coder *******************************
-Color code the temporal changes.
-
-Kota Miura (miura@embl.de) +49 6221 387 404 
-Centre for Molecular and Cellular Imaging, EMBL Heidelberg, Germany
-
-!!! Please do not distribute. If asked, please tell the person to contact me. !!!
-If you publish a paper using this macro, it would be cratedful if you could acknowledge. 
-
-Edit MA 08/10/2015 to save image with file name
- 
----- INSTRUCTION ----
-
-1. Open a stack (8 bit or 16 bit)
-2. Run the macro
-3. In the dialog choose one of the LUT for time coding.
-	select frame range (default is full).
-	check if you want to have color scale bar.
-
-History
-
-080212	created ver1 K_TimeRGBcolorcode.ijm
-080213	stack slice range option added.
-		time color code scale option added.
-
-		future probable addiition: none-linear assigning of gray intensity to color intensity
-		--> but this is same as doing contrast enhancement before processing.
-*****************************************************************************
-*/
-
-
 var Glut = "Fire";	//default LUT
 var Gstartf = 1;
 var Gendf = 10;
@@ -1218,51 +1205,6 @@ macro "drawscale"{
 */
 
 
-macro "Adjust registration Action Tool - C059T3e16R"{
-	
-	if(isKeyDown("shift"))
-		{greenRed=1;
-		print("You're making a green/red composite");
-		}
-	
-	else
-		{greenRed = 0;
-		}
-	
-	regFile=File.openDialog("Select file to change registration");
-
-	// Change "xShift" and "yShift" values to change registration of selected image, in pixels
-	
-	xShift = 5;
-	yShift = 40;
-	
-	open(regFile);
-	regImage = getTitle();
-		
-	dir=getInfo("image.directory");
-	curID=getImageID();
-	imageTitle=getTitle();
-	shortImageTitle=replace(imageTitle,".tif","_");
-	
-	run("Translate...", "x="+xShift+" y="+yShift+" interpolation=None stack");
-	
-	// This sets the contrast of the two colors such that the red channel is 3x brighter than the green channel.
-	
-	saveAs("TIF", dir+shortImageTitle+"translateX"+xShift+"Y"+yShift+".tif");
-	
-}
-
-
-macro "Make multicolor Hyperstack Action Tool- C059T3e16H" {
-	
-	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
-
-	// ask how many channels?
-	#@ Double nChannels
-	
-	run("Stack to Hyperstack...", "order=xyztc channels="+nChannels+" slices=1 frames="+d2s(whole_slices/nChannels)+" display=Composite");
-
-}
 
 
 macro "Measure line from kymograph Action Tool - C059T3e16L"
@@ -1316,7 +1258,7 @@ macro "Measure line from kymograph Action Tool - C059T3e16L"
 	
 	
 	//// Measure and save density of events. In units of events/um^2/minute.
-	
+	measureInitiations = 0;
 	if(measureInitiations>0)
      	{
      		heightpx = getHeight();
@@ -1469,5 +1411,16 @@ macro "Measure line profile from kymograph Action Tool - C059T3e16M"
 	
 	
 	
+}
+
+macro "Make multicolor Hyperstack Action Tool- C059T3e16H" {
+	
+	getDimensions(whole_w, whole_h, whole_channels, whole_slices, whole_frames);
+
+	// ask how many channels?
+	#@ Double nChannels
+	
+	run("Stack to Hyperstack...", "order=xyztc channels="+nChannels+" slices=1 frames="+d2s(whole_slices/nChannels)+" display=Composite");
+
 }
 
