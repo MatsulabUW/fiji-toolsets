@@ -468,8 +468,8 @@ macro "four panel merge from composite Action Tool - C008R00a7R90a7R08a7R98a7"
 		for(k=0;k<channels;k++){
 			selectImage(boxID);
 			cur_ch = d2s(k+1,0);
-//			print("channel ");
-//			print(cur_ch);
+			print("channel ");
+			print(cur_ch);
 //			selectImage(curID);
 //			run("Duplicate...", "duplicate channels="+cur_ch+"");
 			run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"ch"+cur_ch+".tif] duplicate channels="+cur_ch+"");
@@ -547,8 +547,9 @@ macro "four panel merge from composite Action Tool - C008R00a7R90a7R08a7R98a7"
 		if(savegifs==true){
 			// save as gif
 			print("saving gif. This is a little slow but higher resolution than the AVI. To skip this step you can set savegifs to false in the source code");
-			run("Animated Gif ... ", "name="+shortImageTitle+"box"+j+"_channels_panel set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set="+millisecondsperframe+" number=-1 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename="+dir+shortImageTitle+"box"+j+"_channels_panel.gif");
+			run("Animated Gif ... ", "name="+shortImageTitle+"box"+j+"_channels_panel set_global_lookup_table_options=[Do not use] optional=[] image=[No Disposal] set="+millisecondsperframe+" number=0 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename="+dir+shortImageTitle+"box"+j+"_channels_panel.gif");
 		}
+
 		// }
 		saveAs("png", dir+shortImageTitle+"box"+j+"_channels_panel.png");	
 		run("Close");
