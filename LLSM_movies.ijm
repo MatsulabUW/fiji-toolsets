@@ -563,8 +563,8 @@ macro "four panel merge from composite Action Tool - C008R00a7R90a7R08a7R98a7"
 			
 		}
 		else {
-		selectImage(boxID);
-		run("Close");
+//		selectImage(boxID);
+//		run("Close");
 		}
 	}
 	
