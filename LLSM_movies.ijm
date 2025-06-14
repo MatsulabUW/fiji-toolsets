@@ -493,14 +493,19 @@ macro "four panel merge from composite Action Tool - C008R00a7R90a7R08a7R98a7"
 //		run("Duplicate...", "duplicate title=["+shortImageTitle+"box"+j+"_merge.tif]");
 //		run("Close");
 
-		if(twochannel==true){
-			run("RGB Color", "slices");
-		}
-		else {
-			run("RGB Color", "frames keep");
+                if(twochannel==true){
+                        run("RGB Color", "slices");
+                }
+                else {
+                        if(frames==1){
+                                run("RGB Color", "slices");
+                        }
+                        else {
+                                run("RGB Color", "frames keep");
+                        }
 
-			// run("Stack to RGB");
-		}
+                        // run("Stack to RGB");
+                }
 //		selectImage(boxID);
 //		run("Close");
 //		wait(500);
@@ -572,15 +577,20 @@ macro "four panel merge from composite Action Tool - C008R00a7R90a7R08a7R98a7"
 
 	//run("Enhance Contrast", "saturated=0.5");
 	// run("Stack to RGB");
-	if(twochannel==true){
-		run("RGB Color", "slices");
-		roiManager("Set Line Width", 2);
-	}
-	else {
-		// run("Stack to RGB");
-		run("RGB Color", "frames keep");
-		roiManager("Set Line Width", 2);
-	}
+        if(twochannel==true){
+                run("RGB Color", "slices");
+                roiManager("Set Line Width", 2);
+        }
+        else {
+                // run("Stack to RGB");
+                if(whole_frames==1){
+                        run("RGB Color", "slices");
+                }
+                else {
+                        run("RGB Color", "frames keep");
+                }
+                roiManager("Set Line Width", 2);
+        }
 	roiManager("Remove Slice Info");
 	roiManager("Set Color", "magenta");
 	roiManager("deselect");
